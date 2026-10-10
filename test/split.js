@@ -1,0 +1,10 @@
+require("./load.js");
+const pr=(blocks)=>{for(const b of blocks){ if(b.type==="heading")console.log("#".repeat(b.level),b.text); if(b.type==="kv")console.log("  "+b.rows.map(x=>x[0]+"="+(typeof x[1]==="number"?+x[1].toFixed(6):x[1])).join("; ")); if(b.type==="table")console.log((b.title?"  ["+b.title+"]\n":"")+b.rows.map(r=>"    "+r.map(v=>typeof v==="number"?+v.toFixed(6):v).join(" | ")).join("\n")); if(b.type==="warning")console.log("  !!",b.text);}};
+let d=load("Pimen98.csv");
+let terms=A.parseModel(["Bloco","N","erro=Bloco*N","P","N*P"],d.columns.map(c=>c.name));
+let r=A.analyze(d,terms,"Produções de milho","none",{4:[{test:"tukey",unfold:"N",complex:{use:true,b:1,k:2,ea:1,eb:2}},{test:"tukey",unfold:"P"}],1:[{test:"tukey"}]});
+pr(r.blocks);
+d=load("Pimen230.csv");
+terms=A.parseModel(["Blocos","[Adubação kg/parcela]"],d.columns.map(c=>c.name));
+r=A.analyze(d,terms,"Produção de milho","none",{1:[{test:"regression",regTerms:[1,2,3]}]});
+pr(r.blocks);

@@ -1,0 +1,21 @@
+{
+  "name": "varstat",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@electron/packager": "^18.3.6",
+    "playwright-core": "^1.47.2",
+    "png2icons": "^2.0.1",
+    "xlsx": "^0.18.5"
+  }
+}

@@ -1,4 +1,8 @@
-VarStat 1.0.0 — English, cross-platform rebuild of the Sisvar statistics program, with English, Português, Español and Tagalog.
+VarStat 1.0.1 — English, cross-platform rebuild of the Sisvar statistics program, with English, Português, Español and Tagalog.
+
+## What's new in 1.0.1
+- Sisvar data files (`.fdt`) now open correctly: all ten Sisvar example files load identically to their CSV versions (text columns, accents and numeric columns).
+- Results checked side by side against Sisvar 6.6 on six example analyses; see the README.
 
 ## Downloads
 | System | File |

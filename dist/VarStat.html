@@ -3131,64 +3131,80 @@ I18N.add('tl', {
   const nRows = (ds) => Math.max(0, ...ds.columns.map((c) => c.values.length));
 
   /* ---------- FireDAC binary dataset (.fdt, "ADBS" signature) ----------
-     Format reverse-engineered from sample files: a table header followed by
-     column definitions (UTF-16 names) and rows; each row lists (column index,
-     value) pairs. Supports numeric (float/int) and string columns. */
+     Structure (from Sisvar's files): a tagged stream whose tag numbers and type
+     codes are assigned per file. Column definitions appear as FF <tag> 04 00
+     followed by a byte-length-prefixed UTF-16 name. Each row is
+     FF <a> <b> 00 <u32 row number> FF <c>, then (u16 column, value) pairs ending
+     with FE FE. A value is an 8-byte double or a u32-length-prefixed string
+     (ANSI or UTF-16). Missing cells are simply absent. Value kinds are inferred
+     from the row bytes because type codes differ between files. */
   function parseFDT(buf) {
     const u8 = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
     const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
-    const sig = String.fromCharCode(u8[0], u8[1], u8[2], u8[3]);
-    if (sig !== 'ADBS') throw new Error(T('Not a FireDAC binary file (.fdt).'));
-    // locate column definitions: pattern 0xFF 0x0B 0x04 0x00 then uint32 len, UTF-16 name
-    const cols = [];
-    let p = 0;
-    const readU16Str = (at) => { const len = dv.getUint32(at, true); let s = ''; for (let i = 0; i < len; i++) s += String.fromCharCode(dv.getUint16(at + 4 + 2 * i, true)); return { s, next: at + 4 + 2 * len }; };
-    for (p = 8; p < u8.length - 8; p++) {
-      if (u8[p] === 0xFF && u8[p + 1] === 0x0B && u8[p + 2] === 0x04 && u8[p + 3] === 0x00) {
-        const { s, next } = readU16Str(p + 4);
-        // find datatype code: tag 0x05 0x00 (display name) follows; find 0x0C 0x00 then uint32 position
-        cols.push({ name: s, at: next });
-      }
-      if (u8[p] === 0xFE && u8[p + 1] === 0xFE && u8[p + 2] === 0xFF && cols.length) break;
+    const n = u8.length;
+    if (String.fromCharCode(u8[0], u8[1], u8[2], u8[3]) !== 'ADBS') throw new Error(T('Not a FireDAC binary file (.fdt).'));
+    const u16 = (i) => (i + 1 < n ? dv.getUint16(i, true) : -1), u32 = (i) => (i + 3 < n ? dv.getUint32(i, true) : -1);
+    const utf16 = (at, bytes) => { let s = ''; for (let k = 0; k + 1 < bytes; k += 2) s += String.fromCharCode(u16(at + k)); return s; };
+    // 1) column definitions
+    const found = [];
+    for (let p = 8; p < n - 8; p++) {
+      if (u8[p] !== 0xFF || (u8[p + 2] !== 0x04 && u8[p + 2] !== 0x05) || u8[p + 3] !== 0x00) continue; // name or display-name attribute
+      const L = u32(p + 4);
+      if (!(L > 0 && L < 1024 && L % 2 === 0 && p + 8 + L <= n)) continue;
+      const name = utf16(p + 8, L);
+      if (!/^[^\u0000-\u001f]+$/.test(name)) continue;
+      found.push({ tag: u8[p + 1], name, end: p + 8 + L });
     }
+    const counts = {}; found.forEach((f) => (counts[f.tag] = (counts[f.tag] || 0) + 1));
+    const colTag = +Object.keys(counts).sort((x, y) => counts[y] - counts[x] || (found.find((f) => f.tag == x).name === '_FD_TAB') - (found.find((f) => f.tag == y).name === '_FD_TAB'))[0];
+    const cols = found.filter((f) => f.tag === colTag && f.name !== '_FD_TAB');
     if (!cols.length) throw new Error(T('No columns found in .fdt file.'));
-    // data type: search between this column and next for attribute bytes. We infer type from row values instead.
-    // rows: each starts with 0xFF 0x19 ... 0xFF 0x1B then pairs (uint16 idx, value) until 0xFE
-    const rows = [];
     const ncol = cols.length;
-    let i = p;
-    const isTextCol = new Array(ncol).fill(null);
-    while (i < u8.length - 2) {
-      if (u8[i] === 0xFF && u8[i + 1] === 0x1B) {
-        i += 2;
-        const row = new Array(ncol).fill(null);
-        while (i < u8.length && u8[i] !== 0xFE) {
-          const ci = dv.getUint16(i, true); i += 2;
-          if (ci >= ncol) break;
-          // decide string vs double: strings stored as uint32 length + UTF-16 chars (heuristic)
-          let parsed = false;
-          if (isTextCol[ci] !== false) {
-            const len = dv.getUint32(i, true);
-            if (len > 0 && len < 4096 && i + 4 + 2 * len <= u8.length) {
-              let ok = true, s = '';
-              for (let k = 0; k < len; k++) { const c = dv.getUint16(i + 4 + 2 * k, true); if (c < 9 || c > 0xFFFD) { ok = false; break; } s += String.fromCharCode(c); }
-              const after = i + 4 + 2 * len;
-              const nextOk = after < u8.length && (u8[after] === 0xFE || dv.getUint16(after, true) < ncol);
-              if (ok && nextOk && (isTextCol[ci] === true || (/^[\x20-\x7E -ɏ]+$/.test(s)))) { row[ci] = s; i = after; parsed = true; isTextCol[ci] = true; }
-            }
-          }
-          if (!parsed) { row[ci] = dv.getFloat64(i, true); i += 8; isTextCol[ci] = false; }
-        }
-        rows.push(row);
-      } else i++;
+    // 2) locate the first row: FF a b 00 00000000 FF c   (row number 0)
+    let start = -1, a = 0, b = 0, c = 0;
+    for (let p = cols[ncol - 1].end; p < n - 10; p++) {
+      if (u8[p] === 0xFF && u8[p + 3] === 0 && u32(p + 4) === 0 && u8[p + 8] === 0xFF) { start = p; a = u8[p + 1]; b = u8[p + 2]; c = u8[p + 9]; break; }
     }
-    const columns = cols.map((c, j) => {
-      const vals = rows.map((r) => r[j]);
-      const text = vals.some((v) => typeof v === 'string');
-      return { name: c.name, type: text ? 'text' : 'numeric', values: vals.map((v) => (v === null || v === undefined ? null : text ? String(v) : v)) };
+    const rows = [];
+    if (start < 0) return { columns: cols.map((col) => ({ name: col.name, type: 'numeric', values: [] })) };
+    const kind = new Array(ncol).fill(null); // 'num' | 'ansi' | 'wide'
+    const validNext = (i) => i >= n || u8[i] === 0xFE || (u16(i) >= 0 && u16(i) < ncol);
+    const tryStr = (i) => {
+      const L = u32(i);
+      if (!(L >= 0 && L < 100000 && i + 4 + L <= n)) return null;
+      const bytes = u8.subarray(i + 4, i + 4 + L);
+      if (!validNext(i + 4 + L)) return null;
+      const wide = L % 2 === 0 && L > 0 && bytes.every((v, k) => (k % 2 ? v === 0 : v !== 0));
+      if (!wide && !bytes.every((v) => v >= 0x20 || v === 9)) return null;
+      return { kind: wide ? 'wide' : 'ansi', len: 4 + L, value: wide ? utf16(i + 4, L) : decodeAnsi(bytes) };
+    };
+    let p = start;
+    while (p < n - 9 && u8[p] === 0xFF && u8[p + 1] === a && u8[p + 2] === b) {
+      p += 8;
+      if (u8[p] !== 0xFF || u8[p + 1] !== c) break;
+      p += 2;
+      const row = new Array(ncol).fill(null);
+      while (p < n && u8[p] !== 0xFE) {
+        const ci = u16(p); p += 2;
+        if (!(ci >= 0 && ci < ncol)) { p = n; break; }
+        let k = kind[ci], took = false;
+        if (k !== 'num') {
+          const st = tryStr(p);
+          if (st && (k || ((!validNext(p + 8) || /[A-Za-z]/.test(st.value)) && st.len > 4))) { row[ci] = st.value; p += st.len; kind[ci] = st.kind; took = true; }
+        }
+        if (!took) { row[ci] = dv.getFloat64(p, true); p += 8; kind[ci] = 'num'; }
+      }
+      rows.push(row);
+      while (p < n && u8[p] === 0xFE) p++;
+    }
+    const columns = cols.map((col, j) => {
+      const text = kind[j] === 'ansi' || kind[j] === 'wide';
+      return { name: col.name, type: text ? 'text' : 'numeric', values: rows.map((r) => (r[j] === null || r[j] === undefined ? null : text ? String(r[j]) : r[j])) };
     });
     return { columns: uniqueNames(columns) };
   }
+  const CP1252 = { 0x80: 0x20AC, 0x82: 0x201A, 0x83: 0x0192, 0x84: 0x201E, 0x85: 0x2026, 0x86: 0x2020, 0x87: 0x2021, 0x88: 0x02C6, 0x89: 0x2030, 0x8A: 0x0160, 0x8B: 0x2039, 0x8C: 0x0152, 0x8E: 0x017D, 0x91: 0x2018, 0x92: 0x2019, 0x93: 0x201C, 0x94: 0x201D, 0x95: 0x2022, 0x96: 0x2013, 0x97: 0x2014, 0x98: 0x02DC, 0x99: 0x2122, 0x9A: 0x0161, 0x9B: 0x203A, 0x9C: 0x0153, 0x9E: 0x017E, 0x9F: 0x0178 };
+  const decodeAnsi = (bytes) => { let s = ''; for (const v of bytes) s += String.fromCharCode(CP1252[v] || v); return s; };
 
   function numericValues(col) { return col.values.filter((v) => typeof v === 'number' && isFinite(v)); }
 

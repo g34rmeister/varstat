@@ -1,7 +1,7 @@
 {
   "name": "varstat",
   "productName": "VarStat",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Statistics for designed experiments (analysis of variance, mean comparisons, regression) — English, Português, Español, Tagalog.",
   "main": "main.js",
   "author": "VarStat",

@@ -13,7 +13,10 @@ const targets = process.argv.slice(2);
       extendInfo: { CFBundleDocumentTypes: [{ CFBundleTypeName: 'Data file', CFBundleTypeRole: 'Viewer', LSHandlerRank: 'Alternate', CFBundleTypeExtensions: ['csv', 'txt', 'tsv', 'xlsx', 'xls', 'ods', 'fdt'] }], LSMinimumSystemVersion: '10.15' },
     };
     if (platform === 'darwin') opts.icon = path.join(__dirname, 'build', 'icon.icns');
-    if (platform === 'win32') { delete opts.appCopyright; delete opts.appVersion; }
+    if (platform === 'win32') {
+      if (process.platform === 'win32') opts.icon = path.join(__dirname, 'build', 'icon.ico'); // rcedit needs Windows (or Wine)
+      else { delete opts.appCopyright; delete opts.appVersion; }
+    }
     if (platform === 'linux') opts.icon = path.join(__dirname, 'build', 'icon.png');
     const out = await packager(opts);
     console.log(t, '->', out.join(', '));

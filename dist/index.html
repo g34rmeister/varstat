@@ -4284,7 +4284,7 @@ I18N.add('tl', {
       const items = groups.map((g, i) => ({ label: g.label, mean: means[i], n: ns[i] }));
       const sorted = items.slice().sort((a, b) => a.mean - b.mean);
       out.rows = assignLetters(sorted, (i, j) => sorted[j].mean - sorted[i].mean <= out.dms);
-      out.tableQ = A.compareMeans(items, { method: 'tukey', alpha, mse, df: dfE }).info.find((x) => /Studentized/.test(x[0]))[1];
+      out.tableQ = A.compareMeans(items, { method: 'tukey', alpha, mse, df: dfE }).info.find((x) => x[0] === T('Studentized range q'))[1];
       return out;
     }
     if (method === 'snk') {

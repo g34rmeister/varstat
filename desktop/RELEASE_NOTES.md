@@ -1,4 +1,8 @@
-VarStat 1.0.1 — English, cross-platform rebuild of the Sisvar statistics program, with English, Português, Español and Tagalog.
+VarStat 1.0.2 — English, cross-platform rebuild of the Sisvar statistics program, with English, Português, Español and Tagalog.
+
+## What's new in 1.0.2
+- Fixed: a bootstrap multiple-comparisons result in the report no longer breaks when you switch the language.
+- The web page, the offline HTML file, and the Windows and Linux apps were checked against each other with one automated test (`test/parity.js`): same results for every file type, analysis, language and save option.
 
 ## What's new in 1.0.1
 - Sisvar data files (`.fdt`) now open correctly: all ten Sisvar example files load identically to their CSV versions (text columns, accents and numeric columns).

@@ -9,7 +9,7 @@ const targets = process.argv.slice(2);
       name: 'VarStat', executableName: platform === 'linux' ? 'varstat' : 'VarStat', appBundleId: 'app.varstat.desktop', appCategoryType: 'public.app-category.education',
       electronVersion: '31.7.7', platform, arch, asar: true, prune: false,
       ignore: [/^\/build($|\/)/, /^\/pack\.js$/, /^\/node_modules($|\/)/],
-      appCopyright: 'VarStat — methods after Sisvar (D. F. Ferreira, DES/UFLA)', appVersion: '1.0.0',
+      appCopyright: 'VarStat — methods after Sisvar (D. F. Ferreira, DES/UFLA)', appVersion: require('./package.json').version,
       extendInfo: { CFBundleDocumentTypes: [{ CFBundleTypeName: 'Data file', CFBundleTypeRole: 'Viewer', LSHandlerRank: 'Alternate', CFBundleTypeExtensions: ['csv', 'txt', 'tsv', 'xlsx', 'xls', 'ods', 'fdt'] }], LSMinimumSystemVersion: '10.15' },
     };
     if (platform === 'darwin') opts.icon = path.join(__dirname, 'build', 'icon.icns');

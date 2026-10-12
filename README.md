@@ -39,3 +39,7 @@ Sisvar approximates the studentized range (Tukey and SNK) and the Waller–Dunca
 critical values differ from VarStat after the 4th or 5th significant digit. VarStat's values
 match R (`qtukey`) and SAS.
 `test/vs_sisvar.js` reproduces the VarStat side.
+
+## Same results in every build
+`test/parity.js` runs one battery (6 file types, 21 examples, 11 analyses, 4 languages, 4 save formats)
+against the web page, the offline HTML, the Linux app and the Windows .exe (under Wine), and compares the outputs.

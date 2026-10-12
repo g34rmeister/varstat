@@ -1,0 +1,19 @@
+{
+  "name": "varstat",
+  "version": "1.1.0",
+  "description": "Statistics for designed experiments, following the methods of Sisvar — English, Português, Español, Tagalog.",
+  "scripts": {
+    "build": "node build.js",
+    "test": "node test/examples_R.js"
+  },
+  "keywords": [],
+  "author": "Khánh Giang Lê",
+  "license": "MIT",
+  "dependencies": {
+    "@electron/packager": "^18.3.6",
+    "playwright-core": "^1.47.2",
+    "png2icons": "^2.0.1",
+    "xlsx": "^0.18.5"
+  },
+  "repository": "github:g34rmeister/varstat"
+}

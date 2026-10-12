@@ -1,0 +1,45 @@
+<title>VarStat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..700&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>/*@@CSS@@*/</style>
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><span class="plotmark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><b>VarStat</b></div>
+    <nav id="menubar" class="menubar" aria-label="Main menu"></nav>
+    <span class="spacer"></span>
+    <label class="dsname" for="lang" data-i18n="Language">Language</label>
+    <select id="lang" class="inp" style="padding:3px 6px;border:1px solid var(--line);border-radius:6px;background:var(--surface)"></select>
+  </header>
+  <nav class="tabs" aria-label="Views">
+    <button data-t="data" data-i18n="Data">Data</button>
+    <button data-t="report" data-i18n="Report">Report</button>
+  </nav>
+  <main class="panes" data-tab="data">
+    <section class="pane data-pane" aria-label="Data">
+      <div class="pane-head">
+        <h2 data-i18n="Data">Data</h2>
+        <span class="meta"><span id="dsname"></span> · <span id="dsmeta"></span></span>
+        <span class="tools">
+          <button class="btn" id="btn-open" data-i18n="Open file…">Open file…</button>
+          <button class="btn" id="btn-examples" data-i18n="Examples">Examples</button>
+        </span>
+      </div>
+      <div class="grid-wrap" id="grid"></div>
+      <div class="grid-foot"><span data-i18n="Click a column name to rename it or change its type. Drop a CSV, Excel or ODS file anywhere to open it.">Click a column name to rename it or change its type. Drop a CSV, Excel or ODS file anywhere to open it.</span></div>
+    </section>
+    <section class="pane report-pane" aria-label="Report">
+      <div class="pane-head">
+        <h2 data-i18n="Report">Report</h2>
+        <span class="tools">
+          <button class="btn primary" id="btn-anova" data-i18n="Analysis of variance…">Analysis of variance…</button>
+          <button class="btn" id="btn-copyrep" data-i18n="Copy report">Copy report</button>
+          <button class="btn" id="btn-saverep" data-i18n="Save report">Save report</button>
+        </span>
+      </div>
+      <div class="report-wrap"><div class="report" id="report"></div></div>
+    </section>
+  </main>
+  <footer class="status"><span data-i18n="All calculations run on this computer. Nothing is uploaded.">All calculations run on this computer. Nothing is uploaded.</span></footer>
+</div>
+<!--@@SCRIPTS@@-->

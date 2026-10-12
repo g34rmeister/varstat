@@ -1,0 +1,105 @@
+name: Build desktop apps and publish release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release tag to create (e.g. v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            targets: darwin-arm64 darwin-x64
+          - os: windows-latest
+            targets: win32-x64
+          - os: ubuntu-latest
+            targets: linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install build tools
+        run: npm install --no-audit --no-fund xlsx@0.18.5 @electron/packager@18.3.6
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      - name: Build pages
+        run: node build.js
+      - name: Package
+        working-directory: desktop
+        run: node pack.js ${{ matrix.targets }}
+
+      - name: Sign (ad-hoc) and zip macOS apps
+        if: runner.os == 'macOS'
+        run: |
+          for a in arm64 x64; do
+            app="release/VarStat-darwin-$a/VarStat.app"
+            codesign --force --deep --sign - "$app"
+            codesign --verify --deep --strict "$app"
+            cp desktop/README-mac.txt "release/VarStat-darwin-$a/README.txt"
+            cp LICENSE "release/VarStat-darwin-$a/VarStat-LICENSE.txt"; cp NOTICE.md "release/VarStat-darwin-$a/VarStat-NOTICE.md"
+          done
+          (cd release/VarStat-darwin-arm64 && zip -qry ../VarStat-mac-apple-silicon.zip VarStat.app README.txt VarStat-LICENSE.txt VarStat-NOTICE.md)
+          (cd release/VarStat-darwin-x64 && zip -qry ../VarStat-mac-intel.zip VarStat.app README.txt VarStat-LICENSE.txt VarStat-NOTICE.md)
+      - name: Zip Windows app
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Copy-Item desktop/README-windows.txt release/VarStat-win32-x64/README.txt
+          Copy-Item LICENSE release/VarStat-win32-x64/VarStat-LICENSE.txt
+          Copy-Item NOTICE.md release/VarStat-win32-x64/VarStat-NOTICE.md
+          Compress-Archive -Path release/VarStat-win32-x64 -DestinationPath release/VarStat-windows-x64.zip
+      - name: Archive Linux app
+        if: runner.os == 'Linux'
+        run: |
+          cp desktop/README-linux.txt release/VarStat-linux-x64/README.txt
+          cp LICENSE release/VarStat-linux-x64/VarStat-LICENSE.txt; cp NOTICE.md release/VarStat-linux-x64/VarStat-NOTICE.md
+          tar czf release/VarStat-linux-x64.tar.gz -C release VarStat-linux-x64
+
+      - name: Keep builds as workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: VarStat-${{ runner.os }}
+          path: |
+            release/*.zip
+            release/*.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build offline page
+        run: npm install --no-audit --no-fund xlsx@0.18.5 && node build.js
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || inputs.version }}
+          name: VarStat ${{ github.ref_type == 'tag' && github.ref_name || inputs.version }}
+          target_commitish: ${{ github.sha }}
+          body_path: desktop/RELEASE_NOTES.md
+          files: |
+            out/*.zip
+            out/*.tar.gz
+            dist/VarStat.html
